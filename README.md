@@ -2,7 +2,7 @@
 
 `cs2-roadbuilder` is a standards-driven road and highway auto-builder for Cities: Skylines II.
 
-The long-term goal is to let a player choose start/end points, road class, design speed, and a construction philosophy, then generate an engineering-plausible alignment that respects terrain, horizontal curvature, grades, structures, and access rules.
+The long-term goal is to let a player choose start/end points, road class, design speed, and a construction philosophy, then generate an engineering-plausible alignment that respects terrain, horizontal curvature, transition geometry, grades, structures, and access rules.
 
 ## Project principles
 
@@ -12,7 +12,7 @@ The long-term goal is to let a player choose start/end points, road class, desig
 - **Non-destructive development** — early versions calculate and preview before they modify saves or roads.
 - **No required GitHub Actions** — the repository should remain usable without consuming Actions minutes.
 
-## Current v0.1 foundation
+## Current v0.2 foundation
 
 The current implementation contains:
 
@@ -20,25 +20,31 @@ The current implementation contains:
 - a minimal `RealRoadBuilder.Mod` project using the Cities: Skylines II `CSII_TOOLPATH` mod toolchain
 - 2D engineering geometry primitives
 - tangent and true circular-arc alignment elements
-- tangent-arc-tangent fillet construction around a point of intersection
+- Euler spiral/clothoid transition elements with linearly changing curvature
+- tangent → spiral → circular arc → spiral → tangent highway curve construction
 - Japanese Type 1 expressway design rules for 60, 80, 100 and 120 km/h
-- separate normal and exceptional minimum curve radii
-- MLIT transition-section lengths and grade limits stored in the design-rule model
-- horizontal-radius validation with exceptional-radius use disabled by default
+- separate normal and exceptional minimum horizontal curve radii
+- MLIT transition-section lengths, grade limits, crest/sag vertical radii, and vertical-curve lengths
+- horizontal alignment validation for circular radius and transition length/radius
+- station/elevation vertical-profile primitives
+- constant-grade and parabolic vertical-curve elements
+- vertical validation for grade limits, grade continuity, curve length, and crest/sag radius
 - preliminary alignment scoring based on route length and curvature severity
 - terrain-independent seed generation: direct, left-bypass and right-bypass candidates
-- xUnit tests covering standards, fillet geometry, validation, and seed generation
+- xUnit tests covering standards, fillet geometry, clothoids, vertical curves, validation, and seed generation
 
-### Important v0.1 limitations
+### Important v0.2 limitations
 
-This is **not yet a complete standards-compliant highway generator**.
+This is **not yet a complete terrain-aware highway generator**.
 
-- transition spirals/clothoids are not modeled yet
-- vertical-profile and grade solving are not implemented yet
-- terrain, earthwork, bridge, tunnel, demolition and obstacle costs are not implemented yet
+- the seed corridor generator does not yet replace circular fillets with spiral-arc-spiral geometry automatically
+- terrain sampling and vertical-profile optimization are not implemented yet
+- earthwork, bridge, tunnel, demolition and obstacle costs are not implemented yet
+- superelevation/runoff is represented only indirectly through minimum transition-section length; no cross-section roll model exists yet
+- sight-distance validation is not implemented yet
 - the CS2 mod does not create or alter game road networks yet
 
-The validator reports the missing transition/vertical checks instead of silently treating a preliminary alignment as fully compliant.
+The current core can validate engineering geometry before a future game adapter converts it into CS2 network segments.
 
 ## Architecture
 
@@ -74,7 +80,8 @@ src/
 │   ├── Geometry/
 │   ├── Scoring/
 │   ├── Standards/
-│   └── Validation/
+│   ├── Validation/
+│   └── Vertical/
 └── RealRoadBuilder.Mod/
     ├── Mod.cs
     └── RealRoadBuilder.Mod.csproj
@@ -117,14 +124,16 @@ The first standards catalog is based on Japan's Ministry of Land, Infrastructure
 
 - https://www.mlit.go.jp/road/road_e/r1_standard.html
 - https://www.mlit.go.jp/road/road_e/r1_standard_2.html
+- https://www.mlit.go.jp/road/road_e/r1_standard_3.html
 
 The initial Type 1 expressway rules encode values from:
 
-- Article 15 — minimum and exceptional curve radius
+- Article 15 — minimum and exceptional horizontal curve radius
 - Article 18 — minimum transition-section length
 - Article 20 — normal and exceptional maximum grade
+- Article 22 — minimum crest/sag vertical-curve radius and minimum vertical-curve length
 
-Only values explicitly represented in the implementation should be treated as encoded design rules. More detailed cross-section, superelevation, vertical-curve, sight-distance and interchange rules will be added incrementally with their sources.
+Only values explicitly represented in the implementation should be treated as encoded design rules. Cross-section, superelevation, sight-distance, earthwork, structure, and interchange rules will be added incrementally with their sources.
 
 ## Roadmap
 
@@ -137,15 +146,24 @@ Only values explicitly represented in the implementation should be treated as en
 - [x] alignment validation and scoring
 - [x] geometry and standards tests
 - [x] clean boundary for the Cities: Skylines II adapter
-- [ ] transition-spiral element and solver
-- [ ] vertical profile model and grade validation
 
-### v0.2 — Terrain-aware corridor solver
+### v0.2 — Transition and vertical geometry
+
+- [x] Euler spiral/clothoid transition element
+- [x] spiral-arc-spiral curve builder
+- [x] transition length/radius validation
+- [x] vertical profile model
+- [x] parabolic crest/sag vertical curves
+- [x] grade and vertical-radius validation
+- [x] MLIT Article 22 values
+
+### v0.3 — Terrain-aware corridor solver
 
 - terrain sampling abstraction
 - corridor-grid/A* search
 - grade-aware search cost
 - obstacle and demolition cost hooks
+- automatic vertical-profile fitting
 - candidate preview data
 
 ### Later
@@ -154,5 +172,7 @@ Only values explicitly represented in the implementation should be treated as en
 - cut/fill estimation
 - bridges, embankments, and tunnels
 - ramps and interchanges
+- superelevation and cross-section roll
+- sight-distance validation
 - additional regional standards
 - conversion of a validated alignment into Cities: Skylines II road networks
