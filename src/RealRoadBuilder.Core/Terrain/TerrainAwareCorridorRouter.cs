@@ -65,9 +65,7 @@ public sealed class TerrainAwareCorridorRouter
         MinHeap openSet = new();
 
         costFromStart[startState] = 0.0;
-        openSet.Enqueue(
-            startState,
-            EstimateRemainingCost(start, end));
+        openSet.Enqueue(startState, EstimateRemainingCost(start, end));
 
         int expandedStates = 0;
 
@@ -138,7 +136,9 @@ public sealed class TerrainAwareCorridorRouter
                 SearchState nextState = new(nextGridX, nextGridY, offsetX, offsetY);
                 PlanarPoint nextPosition = GetWorldPosition(start, nextState, options.CellSizeMeters);
 
-                if (constraintProvider != null && constraintProvider.IsBlocked(nextPosition))
+                if (constraintProvider != null &&
+                    (constraintProvider.IsBlocked(nextPosition) ||
+                     IsSegmentBlocked(currentPosition, nextPosition, constraintProvider)))
                 {
                     continue;
                 }
@@ -225,6 +225,13 @@ public sealed class TerrainAwareCorridorRouter
         {
             finalSegmentCost = 0.0;
             return true;
+        }
+
+        if (constraintProvider != null &&
+            IsSegmentBlocked(currentPosition, end, constraintProvider))
+        {
+            finalSegmentCost = 0.0;
+            return false;
         }
 
         double gradePercent = CalculateGradePercent(
@@ -317,6 +324,26 @@ public sealed class TerrainAwareCorridorRouter
             gradePenalty +
             turnPenalty +
             (options.AdditionalCostWeight * additionalCost);
+    }
+
+    private static bool IsSegmentBlocked(
+        PlanarPoint start,
+        PlanarPoint end,
+        ICorridorConstraintProvider constraintProvider)
+    {
+        PlanarVector delta = end - start;
+        double[] sampleFractions = { 0.25, 0.5, 0.75 };
+
+        foreach (double sampleFraction in sampleFractions)
+        {
+            PlanarPoint samplePoint = start + (delta * sampleFraction);
+            if (constraintProvider.IsBlocked(samplePoint))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static double CalculateTurnPenalty(
