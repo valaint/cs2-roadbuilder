@@ -140,6 +140,12 @@ public sealed class CorridorVerticalProfileOptimizer
                 $"The preliminary profile optimizer did not converge within the {maximumGradePercent:0.###}% grade limit. Observed {maximumObservedGradePercent:0.###}%.");
         }
 
+        ValidateApproximateCurvatureEnvelope(
+            terrainProfile,
+            designElevations,
+            designRule.MinimumCrestVerticalCurveRadiusMeters,
+            designRule.MinimumSagVerticalCurveRadiusMeters);
+
         List<DesignedProfileSample> samples = new(terrainProfile.Count);
         for (int index = 0; index < terrainProfile.Count; index++)
         {
@@ -266,6 +272,52 @@ public sealed class CorridorVerticalProfileOptimizer
             elevations[index] +=
                 (gradeChangeDecimal - desiredGradeChangeDecimal) /
                 elevationCoefficient;
+        }
+    }
+
+    private static void ValidateApproximateCurvatureEnvelope(
+        IReadOnlyList<CorridorProfileSample> terrainProfile,
+        double[] elevations,
+        double minimumCrestRadiusMeters,
+        double minimumSagRadiusMeters)
+    {
+        const double tolerance = 1e-5;
+
+        for (int index = 1; index < elevations.Length - 1; index++)
+        {
+            double previousDistanceMeters =
+                terrainProfile[index].StationMeters -
+                terrainProfile[index - 1].StationMeters;
+            double nextDistanceMeters =
+                terrainProfile[index + 1].StationMeters -
+                terrainProfile[index].StationMeters;
+
+            double incomingGradeDecimal =
+                (elevations[index] - elevations[index - 1]) /
+                previousDistanceMeters;
+            double outgoingGradeDecimal =
+                (elevations[index + 1] - elevations[index]) /
+                nextDistanceMeters;
+            double gradeChangeDecimal = outgoingGradeDecimal - incomingGradeDecimal;
+
+            if (Math.Abs(gradeChangeDecimal) <= 1e-12)
+            {
+                continue;
+            }
+
+            double effectiveDistanceMeters =
+                (previousDistanceMeters + nextDistanceMeters) * 0.5;
+            double requiredRadiusMeters = gradeChangeDecimal < 0.0
+                ? minimumCrestRadiusMeters
+                : minimumSagRadiusMeters;
+            double maximumGradeChangeDecimal =
+                effectiveDistanceMeters / requiredRadiusMeters;
+
+            if (Math.Abs(gradeChangeDecimal) > maximumGradeChangeDecimal + tolerance)
+            {
+                throw new InvalidOperationException(
+                    "The preliminary profile optimizer did not converge inside the selected approximate crest/sag curvature envelope.");
+            }
         }
     }
 
