@@ -86,7 +86,10 @@ public static class HorizontalAlignmentValidator
 
     private static bool CurvaturesConnect(double transitionCurvaturePerMeter, CircularArcElement curve)
     {
-        double arcCurvatureMagnitude = 1.0 / curve.RadiusMeters;
-        return Math.Abs(Math.Abs(transitionCurvaturePerMeter) - arcCurvatureMagnitude) <= CurvatureTolerance;
+        double signedArcCurvaturePerMeter =
+            (curve.IsLeftTurn ? 1.0 : -1.0) / curve.RadiusMeters;
+
+        return Math.Abs(transitionCurvaturePerMeter - signedArcCurvaturePerMeter) <=
+            CurvatureTolerance;
     }
 }
