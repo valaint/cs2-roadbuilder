@@ -5,14 +5,16 @@ using RealRoadBuilder.Core.Design;
 namespace RealRoadBuilder.Core.Standards;
 
 /// <summary>
-/// Initial Japanese highway design rules sourced from the MLIT English
-/// translation of the Road Structure Ordinance, Articles 13, 15, 18 and 20.
+/// Japanese highway design rules sourced from the MLIT English translation
+/// of the Road Structure Ordinance, including horizontal alignment,
+/// transition sections, grades, and vertical curves.
 ///
-/// Source:
+/// Sources:
 /// https://www.mlit.go.jp/road/road_e/r1_standard_2.html
+/// https://www.mlit.go.jp/road/road_e/r1_standard_3.html
 ///
 /// This catalog intentionally starts with Type 1 regular motor vehicle roads
-/// at the normal expressway design speeds used by the first generator.
+/// at the expressway design speeds used by the first generator.
 /// </summary>
 public static class JapanRoadStructureOrdinance
 {
@@ -28,28 +30,40 @@ public static class JapanRoadStructureOrdinance
                 exceptionalMinimumCurveRadiusMeters: 570.0,
                 minimumTransitionLengthMeters: 100.0,
                 maximumGradePercent: 2.0,
-                exceptionalMaximumGradePercent: 5.0),
+                exceptionalMaximumGradePercent: 5.0,
+                minimumCrestVerticalCurveRadiusMeters: 11000.0,
+                minimumSagVerticalCurveRadiusMeters: 4000.0,
+                minimumVerticalCurveLengthMeters: 100.0),
             [100] = CreateRule(
                 designSpeedKph: 100,
                 minimumCurveRadiusMeters: 460.0,
                 exceptionalMinimumCurveRadiusMeters: 380.0,
                 minimumTransitionLengthMeters: 85.0,
                 maximumGradePercent: 3.0,
-                exceptionalMaximumGradePercent: 6.0),
+                exceptionalMaximumGradePercent: 6.0,
+                minimumCrestVerticalCurveRadiusMeters: 6500.0,
+                minimumSagVerticalCurveRadiusMeters: 3000.0,
+                minimumVerticalCurveLengthMeters: 85.0),
             [80] = CreateRule(
                 designSpeedKph: 80,
                 minimumCurveRadiusMeters: 280.0,
                 exceptionalMinimumCurveRadiusMeters: 230.0,
                 minimumTransitionLengthMeters: 70.0,
                 maximumGradePercent: 4.0,
-                exceptionalMaximumGradePercent: 7.0),
+                exceptionalMaximumGradePercent: 7.0,
+                minimumCrestVerticalCurveRadiusMeters: 3000.0,
+                minimumSagVerticalCurveRadiusMeters: 2000.0,
+                minimumVerticalCurveLengthMeters: 70.0),
             [60] = CreateRule(
                 designSpeedKph: 60,
                 minimumCurveRadiusMeters: 150.0,
                 exceptionalMinimumCurveRadiusMeters: 120.0,
                 minimumTransitionLengthMeters: 50.0,
                 maximumGradePercent: 5.0,
-                exceptionalMaximumGradePercent: 8.0),
+                exceptionalMaximumGradePercent: 8.0,
+                minimumCrestVerticalCurveRadiusMeters: 1400.0,
+                minimumSagVerticalCurveRadiusMeters: 1000.0,
+                minimumVerticalCurveLengthMeters: 50.0),
         };
 
     public static IReadOnlyCollection<int> SupportedExpresswayDesignSpeedsKph =>
@@ -74,7 +88,10 @@ public static class JapanRoadStructureOrdinance
         double exceptionalMinimumCurveRadiusMeters,
         double minimumTransitionLengthMeters,
         double maximumGradePercent,
-        double exceptionalMaximumGradePercent)
+        double exceptionalMaximumGradePercent,
+        double minimumCrestVerticalCurveRadiusMeters,
+        double minimumSagVerticalCurveRadiusMeters,
+        double minimumVerticalCurveLengthMeters)
     {
         return new RoadDesignRule(
             standardId: StandardId,
@@ -84,6 +101,9 @@ public static class JapanRoadStructureOrdinance
             exceptionalMinimumCurveRadiusMeters: exceptionalMinimumCurveRadiusMeters,
             minimumTransitionLengthMeters: minimumTransitionLengthMeters,
             maximumGradePercent: maximumGradePercent,
-            exceptionalMaximumGradePercent: exceptionalMaximumGradePercent);
+            exceptionalMaximumGradePercent: exceptionalMaximumGradePercent,
+            minimumCrestVerticalCurveRadiusMeters: minimumCrestVerticalCurveRadiusMeters,
+            minimumSagVerticalCurveRadiusMeters: minimumSagVerticalCurveRadiusMeters,
+            minimumVerticalCurveLengthMeters: minimumVerticalCurveLengthMeters);
     }
 }
