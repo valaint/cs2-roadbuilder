@@ -79,6 +79,8 @@ public sealed partial class RealRoadPreviewToolSystem : ObjectToolBaseSystem
 
     protected override void OnStopRunning()
     {
+        applyAction.shouldBeEnabled = false;
+        cancelAction.shouldBeEnabled = false;
         _hasCursor = false;
         base.OnStopRunning();
     }
