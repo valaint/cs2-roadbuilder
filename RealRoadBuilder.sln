@@ -1,0 +1,30 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RealRoadBuilder.Core", "src\RealRoadBuilder.Core\RealRoadBuilder.Core.csproj", "{7B1E393C-6F82-4B59-9F1A-64EBE1A83A31}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RealRoadBuilder.Mod", "src\RealRoadBuilder.Mod\RealRoadBuilder.Mod.csproj", "{4A2F2296-5EE0-4F5C-8B98-9F90B7D5B0D2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RealRoadBuilder.Core.Tests", "tests\RealRoadBuilder.Core.Tests\RealRoadBuilder.Core.Tests.csproj", "{BC3A830A-0D2E-49A8-98B0-07DCB7D7F35E}"
+EndProject
+Global
+    GlobalSection(SolutionConfigurationPlatforms) = preSolution
+        Debug|Any CPU = Debug|Any CPU
+        Release|Any CPU = Release|Any CPU
+    EndGlobalSection
+    GlobalSection(ProjectConfigurationPlatforms) = postSolution
+        {7B1E393C-6F82-4B59-9F1A-64EBE1A83A31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {7B1E393C-6F82-4B59-9F1A-64EBE1A83A31}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {7B1E393C-6F82-4B59-9F1A-64EBE1A83A31}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {7B1E393C-6F82-4B59-9F1A-64EBE1A83A31}.Release|Any CPU.Build.0 = Release|Any CPU
+        {4A2F2296-5EE0-4F5C-8B98-9F90B7D5B0D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {4A2F2296-5EE0-4F5C-8B98-9F90B7D5B0D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {4A2F2296-5EE0-4F5C-8B98-9F90B7D5B0D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {4A2F2296-5EE0-4F5C-8B98-9F90B7D5B0D2}.Release|Any CPU.Build.0 = Release|Any CPU
+        {BC3A830A-0D2E-49A8-98B0-07DCB7D7F35E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {BC3A830A-0D2E-49A8-98B0-07DCB7D7F35E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {BC3A830A-0D2E-49A8-98B0-07DCB7D7F35E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {BC3A830A-0D2E-49A8-98B0-07DCB7D7F35E}.Release|Any CPU.Build.0 = Release|Any CPU
+    EndGlobalSection
+EndGlobal
