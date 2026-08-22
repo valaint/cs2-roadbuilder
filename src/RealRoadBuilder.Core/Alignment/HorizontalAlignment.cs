@@ -48,4 +48,7 @@ public sealed class HorizontalAlignment
     public double TotalLengthMeters { get; }
 
     public IEnumerable<CircularArcElement> Curves => _elements.OfType<CircularArcElement>();
+
+    public IEnumerable<TransitionSpiralElement> TransitionSpirals =>
+        _elements.OfType<TransitionSpiralElement>();
 }
