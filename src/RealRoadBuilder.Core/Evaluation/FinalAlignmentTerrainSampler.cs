@@ -82,11 +82,12 @@ public static class FinalAlignmentTerrainSampler
         var position = HorizontalAlignmentStationSampler.PointAt(
             horizontalAlignment,
             stationMeters);
-        VerticalAlignmentElement verticalElement = FindVerticalElement(
+        double designElevationMeters = VerticalAlignmentStationSampler.ElevationAt(
             verticalAlignment,
             stationMeters);
-        double designElevationMeters = verticalElement.ElevationAt(stationMeters);
-        double designGradePercent = verticalElement.GradePercentAt(stationMeters);
+        double designGradePercent = VerticalAlignmentStationSampler.GradePercentAt(
+            verticalAlignment,
+            stationMeters);
         double terrainElevationMeters = terrainSampler.GetElevationMeters(position);
 
         return new AlignmentTerrainSample(
@@ -95,28 +96,5 @@ public static class FinalAlignmentTerrainSampler
             terrainElevationMeters,
             designElevationMeters,
             designGradePercent);
-    }
-
-    private static VerticalAlignmentElement FindVerticalElement(
-        VerticalAlignment alignment,
-        double stationMeters)
-    {
-        for (int index = 0; index < alignment.Elements.Count; index++)
-        {
-            VerticalAlignmentElement element = alignment.Elements[index];
-            if (stationMeters <= element.EndStationMeters + AlignmentLengthToleranceMeters)
-            {
-                double clampedStationMeters = Math.Max(
-                    element.StartStationMeters,
-                    Math.Min(element.EndStationMeters, stationMeters));
-
-                if (Math.Abs(clampedStationMeters - stationMeters) <= AlignmentLengthToleranceMeters)
-                {
-                    return element;
-                }
-            }
-        }
-
-        return alignment.Elements[alignment.Elements.Count - 1];
     }
 }
