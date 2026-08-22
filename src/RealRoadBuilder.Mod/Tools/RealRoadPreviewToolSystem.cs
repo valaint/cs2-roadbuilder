@@ -21,15 +21,23 @@ namespace RealRoadBuilder.Mod.Tools;
 
 /// <summary>
 /// Read-only highway planning tool. The tool raycasts terrain, accepts start/end
-/// points, runs the game-independent planning engine, and renders the resulting
-/// fitted alignment as an overlay. It never creates or modifies network entities.
+/// points, runs the game-independent planning engine against a snapshot of the
+/// current world, and renders the resulting fitted alignment as an overlay. It
+/// never creates or modifies network entities.
 /// </summary>
 public sealed partial class RealRoadPreviewToolSystem : ObjectToolBaseSystem
 {
     private const float EndpointRadiusMeters = 8f;
     private const float OverlayLiftMeters = 0.35f;
 
+    // Relative A* costs for live-world features. They deliberately stay here,
+    // rather than pretending to be real currency or construction bid values.
+    private const double BuildingDemolitionSoftCost = 2500.0;
+    private const double ExistingRoadSoftCost = 40.0;
+    private const double SurfaceRailSoftCost = 120.0;
+
     private TerrainSystem? _terrainSystem;
+    private WaterSystem? _waterSystem;
     private TerrainHeightData _terrainHeightData;
     private OverlayRenderSystem.Buffer _overlayBuffer;
     private readonly HighwayPlanningEngine _planningEngine = new();
@@ -54,6 +62,7 @@ public sealed partial class RealRoadPreviewToolSystem : ObjectToolBaseSystem
     {
         base.OnCreate();
         _terrainSystem = World.GetOrCreateSystemManaged<TerrainSystem>();
+        _waterSystem = World.GetOrCreateSystemManaged<WaterSystem>();
         _overlayBuffer = World
             .GetOrCreateSystemManaged<OverlayRenderSystem>()
             .GetBuffer(out _);
@@ -128,9 +137,6 @@ public sealed partial class RealRoadPreviewToolSystem : ObjectToolBaseSystem
             return;
         }
 
-        // TerrainSystem tracks CPU readers so terrain writes are not allowed to
-        // race the synchronous preview sampler. This mirrors maintained CS2 tool
-        // integrations that sample TerrainHeightData on the CPU.
         _terrainSystem.AddCPUHeightReader(readerDependency);
         _terrainHeightData = _terrainSystem.GetHeightData(false);
     }
@@ -229,30 +235,61 @@ public sealed partial class RealRoadPreviewToolSystem : ObjectToolBaseSystem
 
         try
         {
-            StatusText = "Generating highway preview...";
+            ICorridorConstraintProvider? worldConstraints = null;
+            IStructureRequirementProvider? structureRequirements = null;
+            string worldSummary = "world constraints off";
+
+            if (settings.UseLiveWorldConstraints)
+            {
+                worldConstraints = Cs2WorldConstraintProvider.Capture(
+                    EntityManager,
+                    buildingClearanceMeters: settings.BuildingClearanceMeters,
+                    buildingsAreHardObstacles: settings.BuildingsAreHardObstacles,
+                    buildingSoftCost: BuildingDemolitionSoftCost,
+                    roadInfluenceMeters: settings.ExistingRoadInfluenceMeters,
+                    roadCost: ExistingRoadSoftCost,
+                    railInfluenceMeters: settings.SurfaceRailInfluenceMeters,
+                    railCost: SurfaceRailSoftCost);
+
+                if (_waterSystem != null)
+                {
+                    structureRequirements = Cs2WaterStructureRequirementProvider.Capture(
+                        _waterSystem,
+                        settings.MinimumBridgeWaterDepthMeters);
+                }
+
+                Cs2WorldConstraintProvider snapshot = (Cs2WorldConstraintProvider)worldConstraints;
+                worldSummary =
+                    $"world {snapshot.BuildingCount} bldg / " +
+                    $"{snapshot.RoadEdgeCount} road / {snapshot.RailEdgeCount} rail";
+            }
+
+            StatusText = $"Generating highway preview... {worldSummary}";
             _planningResult = _planningEngine.Plan(
                 start,
                 end,
                 terrainSampler,
                 JapanRoadStructureOrdinance.GetExpresswayRule(settings.DesignSpeedKph),
-                planningOptions);
+                planningOptions,
+                initialConstraintProvider: worldConstraints,
+                structureRequirementProvider: structureRequirements);
 
             HighwayPlanningAttempt? bestAttempt = _planningResult.BestAttempt;
             if (bestAttempt?.ConstructionEvaluation == null)
             {
                 string failure = _planningResult.Attempts[_planningResult.Attempts.Count - 1].FailureReason
                     ?? "No standards-valid candidate was produced.";
-                StatusText = $"No valid preview: {failure}";
+                StatusText = $"No valid preview: {failure} | {worldSummary}";
                 return;
             }
 
             ConstructionEvaluationResult evaluation = bestAttempt.ConstructionEvaluation;
             StatusText =
                 $"{settings.DesignSpeedKph} km/h | " +
-                $"{bestAttempt.Route.TotalLengthMeters:0} m corridor | " +
+                $"{bestAttempt.Route.TotalLengthMeters:0} m | " +
                 $"bridge {evaluation.BridgeLengthMeters:0} m | " +
                 $"tunnel {evaluation.TunnelLengthMeters:0} m | " +
-                $"relative cost {evaluation.TotalRelativeCost:0.0}";
+                $"cost {evaluation.TotalRelativeCost:0.0} | {worldSummary}";
 
             Mod.Log.Info($"Generated preview: {StatusText}");
         }

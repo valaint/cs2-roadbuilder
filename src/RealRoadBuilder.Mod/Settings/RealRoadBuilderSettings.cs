@@ -8,12 +8,13 @@ namespace RealRoadBuilder.Mod.Settings;
 
 [FileLocation(Mod.Name)]
 [SettingsUITabOrder(GeneralTab)]
-[SettingsUIGroupOrder(PlanningGroup, PreviewGroup)]
-[SettingsUIShowGroupName(PlanningGroup, PreviewGroup)]
+[SettingsUIGroupOrder(PlanningGroup, WorldGroup, PreviewGroup)]
+[SettingsUIShowGroupName(PlanningGroup, WorldGroup, PreviewGroup)]
 public sealed class RealRoadBuilderSettings : ModSetting
 {
     public const string GeneralTab = "General";
     public const string PlanningGroup = "Planning";
+    public const string WorldGroup = "Live world";
     public const string PreviewGroup = "Preview";
 
     public RealRoadBuilderSettings(IMod mod)
@@ -36,6 +37,28 @@ public sealed class RealRoadBuilderSettings : ModSetting
 
     [SettingsUISection(GeneralTab, PlanningGroup)]
     public bool AllowExceptionalGeometry { get; set; }
+
+    [SettingsUISection(GeneralTab, WorldGroup)]
+    public bool UseLiveWorldConstraints { get; set; }
+
+    [SettingsUISection(GeneralTab, WorldGroup)]
+    public bool BuildingsAreHardObstacles { get; set; }
+
+    [SettingsUISection(GeneralTab, WorldGroup)]
+    [SettingsUISlider(min = 0f, max = 30f, step = 2f)]
+    public float BuildingClearanceMeters { get; set; }
+
+    [SettingsUISection(GeneralTab, WorldGroup)]
+    [SettingsUISlider(min = 0f, max = 40f, step = 2f)]
+    public float ExistingRoadInfluenceMeters { get; set; }
+
+    [SettingsUISection(GeneralTab, WorldGroup)]
+    [SettingsUISlider(min = 0f, max = 50f, step = 2f)]
+    public float SurfaceRailInfluenceMeters { get; set; }
+
+    [SettingsUISection(GeneralTab, WorldGroup)]
+    [SettingsUISlider(min = 0.1f, max = 3f, step = 0.1f)]
+    public float MinimumBridgeWaterDepthMeters { get; set; }
 
     [SettingsUISection(GeneralTab, PreviewGroup)]
     [SettingsUISlider(min = 0.5f, max = 4f, step = 0.5f)]
@@ -88,6 +111,14 @@ public sealed class RealRoadBuilderSettings : ModSetting
         SearchCellSizeMeters = 40f;
         MaximumPlanningIterations = 3;
         AllowExceptionalGeometry = false;
+
+        UseLiveWorldConstraints = true;
+        BuildingsAreHardObstacles = true;
+        BuildingClearanceMeters = 10f;
+        ExistingRoadInfluenceMeters = 12f;
+        SurfaceRailInfluenceMeters = 16f;
+        MinimumBridgeWaterDepthMeters = 0.25f;
+
         PreviewLineWidth = 1.5f;
     }
 }
