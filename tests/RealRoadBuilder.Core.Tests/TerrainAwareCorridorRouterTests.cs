@@ -86,6 +86,32 @@ public sealed class TerrainAwareCorridorRouterTests
     }
 
     [Fact]
+    public void FindRoute_HighCostLandUseZone_PrefersLongerLowImpactRoute()
+    {
+        TerrainAwareCorridorRouter router = new();
+        CostZoneConstraintProvider constraints = new(
+            minimumX: 160.0,
+            maximumX: 240.0,
+            minimumY: -80.0,
+            maximumY: 80.0,
+            zoneCost: 1000.0);
+
+        CorridorRoute route = router.FindRoute(
+            new PlanarPoint(0.0, 0.0),
+            new PlanarPoint(400.0, 0.0),
+            new DelegateTerrainSampler(_ => 0.0),
+            JapanRoadStructureOrdinance.GetExpresswayRule(100),
+            new CorridorSearchOptions(
+                cellSizeMeters: 40.0,
+                searchMarginMeters: 240.0,
+                additionalCostWeight: 1.0),
+            constraints);
+
+        Assert.True(route.Waypoints.Any(waypoint => Math.Abs(waypoint.Position.Y) > 80.0));
+        Assert.True(route.TotalLengthMeters > 400.0);
+    }
+
+    [Fact]
     public void FindRoute_FourPercentStraightGrade_RequiresExceptionalModeWhenNoDetourExists()
     {
         TerrainAwareCorridorRouter router = new();
@@ -160,6 +186,44 @@ public sealed class TerrainAwareCorridorRouterTests
         public double GetAdditionalCost(PlanarPoint point)
         {
             return 0.0;
+        }
+    }
+
+    private sealed class CostZoneConstraintProvider : ICorridorConstraintProvider
+    {
+        private readonly double _minimumX;
+        private readonly double _maximumX;
+        private readonly double _minimumY;
+        private readonly double _maximumY;
+        private readonly double _zoneCost;
+
+        public CostZoneConstraintProvider(
+            double minimumX,
+            double maximumX,
+            double minimumY,
+            double maximumY,
+            double zoneCost)
+        {
+            _minimumX = minimumX;
+            _maximumX = maximumX;
+            _minimumY = minimumY;
+            _maximumY = maximumY;
+            _zoneCost = zoneCost;
+        }
+
+        public bool IsBlocked(PlanarPoint point)
+        {
+            return false;
+        }
+
+        public double GetAdditionalCost(PlanarPoint point)
+        {
+            bool insideZone =
+                point.X >= _minimumX &&
+                point.X <= _maximumX &&
+                point.Y >= _minimumY &&
+                point.Y <= _maximumY;
+            return insideZone ? _zoneCost : 0.0;
         }
     }
 }
