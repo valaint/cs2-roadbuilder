@@ -1,16 +1,18 @@
 using Colossal.IO.AssetDatabase;
 using Game.Modding;
 using Game.Settings;
-using Unity.Entities;
 using RealRoadBuilder.Mod.Tools;
+using Unity.Entities;
 
 namespace RealRoadBuilder.Mod.Settings;
 
 [FileLocation(Mod.Name)]
+[SettingsUITabOrder(GeneralTab)]
 [SettingsUIGroupOrder(PlanningGroup, PreviewGroup)]
 [SettingsUIShowGroupName(PlanningGroup, PreviewGroup)]
 public sealed class RealRoadBuilderSettings : ModSetting
 {
+    public const string GeneralTab = "General";
     public const string PlanningGroup = "Planning";
     public const string PreviewGroup = "Preview";
 
@@ -20,27 +22,27 @@ public sealed class RealRoadBuilderSettings : ModSetting
         SetDefaults();
     }
 
-    [SettingsUISection(PlanningGroup)]
+    [SettingsUISection(GeneralTab, PlanningGroup)]
     [SettingsUISlider(min = 60, max = 120, step = 20)]
     public int DesignSpeedKph { get; set; }
 
-    [SettingsUISection(PlanningGroup)]
+    [SettingsUISection(GeneralTab, PlanningGroup)]
     [SettingsUISlider(min = 20f, max = 80f, step = 10f)]
     public float SearchCellSizeMeters { get; set; }
 
-    [SettingsUISection(PlanningGroup)]
+    [SettingsUISection(GeneralTab, PlanningGroup)]
     [SettingsUISlider(min = 1, max = 4, step = 1)]
     public int MaximumPlanningIterations { get; set; }
 
-    [SettingsUISection(PlanningGroup)]
+    [SettingsUISection(GeneralTab, PlanningGroup)]
     public bool AllowExceptionalGeometry { get; set; }
 
-    [SettingsUISection(PreviewGroup)]
+    [SettingsUISection(GeneralTab, PreviewGroup)]
     [SettingsUISlider(min = 0.5f, max = 4f, step = 0.5f)]
     public float PreviewLineWidth { get; set; }
 
-    [SettingsUISection(PreviewGroup)]
-    [SettingsUIButton]
+    [SettingsUISection(GeneralTab, PreviewGroup)]
+    [SettingsUIButton()]
     public bool ActivatePreviewTool
     {
         set
@@ -56,8 +58,8 @@ public sealed class RealRoadBuilderSettings : ModSetting
         }
     }
 
-    [SettingsUISection(PreviewGroup)]
-    [SettingsUIButton]
+    [SettingsUISection(GeneralTab, PreviewGroup)]
+    [SettingsUIButton()]
     public bool ClearPreview
     {
         set
@@ -73,7 +75,7 @@ public sealed class RealRoadBuilderSettings : ModSetting
         }
     }
 
-    [SettingsUISection(PreviewGroup)]
+    [SettingsUISection(GeneralTab, PreviewGroup)]
     [SettingsUIMultilineText]
     public string PreviewStatus =>
         World.DefaultGameObjectInjectionWorld?
