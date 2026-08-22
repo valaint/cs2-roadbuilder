@@ -110,12 +110,27 @@ public sealed partial class RealRoadPreviewToolSystem : ObjectToolBaseSystem
     {
         applyMode = ApplyMode.Clear;
 
+        RefreshTerrainSnapshot(inputDeps);
         UpdateCursor();
         HandleCancel();
         HandleApply();
         DrawPreview();
 
         return inputDeps;
+    }
+
+    private void RefreshTerrainSnapshot(JobHandle readerDependency)
+    {
+        if (_terrainSystem == null)
+        {
+            return;
+        }
+
+        // TerrainSystem tracks CPU readers so terrain writes are not allowed to
+        // race the synchronous preview sampler. This mirrors maintained CS2 tool
+        // integrations that sample TerrainHeightData on the CPU.
+        _terrainSystem.AddCPUHeightReader(readerDependency);
+        _terrainHeightData = _terrainSystem.GetHeightData(false);
     }
 
     private void UpdateCursor()
@@ -127,7 +142,6 @@ public sealed partial class RealRoadPreviewToolSystem : ObjectToolBaseSystem
             return;
         }
 
-        _terrainHeightData = _terrainSystem.GetHeightData();
         float3 point = raycastPoint.m_HitPosition;
         point.y = TerrainUtils.SampleHeight(ref _terrainHeightData, point);
         _cursorPoint = point;
@@ -193,7 +207,7 @@ public sealed partial class RealRoadPreviewToolSystem : ObjectToolBaseSystem
         }
 
         RealRoadBuilderSettings settings = Mod.Settings;
-        Cs2TerrainSampler terrainSampler = new(_terrainSystem);
+        Cs2TerrainSampler terrainSampler = new(_terrainHeightData);
         HighwayPlanningOptions planningOptions = new()
         {
             Search = new CorridorSearchOptions(
@@ -316,7 +330,6 @@ public sealed partial class RealRoadPreviewToolSystem : ObjectToolBaseSystem
             return point;
         }
 
-        _terrainHeightData = _terrainSystem.GetHeightData();
         point.y = TerrainUtils.SampleHeight(ref _terrainHeightData, point) + OverlayLiftMeters;
         return point;
     }
