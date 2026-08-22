@@ -7,7 +7,7 @@ namespace RealRoadBuilder.Mod;
 public sealed class Mod : IMod
 {
     public const string Name = "RealRoad Builder";
-    public const string Version = "0.4.0-dev";
+    public const string Version = "0.5.0-dev";
 
     public static readonly ILog Log =
         LogManager.GetLogger("RealRoadBuilder").SetShowsErrorsInUI(false);
@@ -15,7 +15,7 @@ public sealed class Mod : IMod
     public void OnLoad(UpdateSystem updateSystem)
     {
         Log.Info($"Loading {Name} {Version}.");
-        Log.Info("Terrain corridors can now be fitted into validated horizontal and vertical engineering alignments in the core. In-game network construction remains intentionally disabled.");
+        Log.Info("The core can now iteratively route, fit, evaluate terrain/earthwork/structures, and feed costly solutions back into corridor search. In-game network construction remains intentionally disabled.");
     }
 
     public void OnDispose()

@@ -6,39 +6,39 @@ The long-term goal is to let a player choose start/end points, road class, desig
 
 ## Project principles
 
-- **Engineering model first** — standards, routing, and fitting stay independent from Cities: Skylines II game APIs.
-- **Real-world design rules** — regional standards are data-driven and sourceable.
+- **Engineering model first** — standards, routing, fitting, and construction evaluation stay independent from Cities: Skylines II game APIs.
+- **Real-world geometry rules** — regional road standards are sourceable and kept separate from game heuristics.
 - **Preview before build** — generated alignments must be inspectable and rejectable before creating game networks.
-- **Non-destructive development** — early versions calculate and validate before they modify saves or roads.
+- **Non-destructive development** — the core calculates and validates before the mod is allowed to mutate roads or saves.
 - **No required GitHub Actions** — the repository remains usable without consuming Actions minutes.
 
-## Current v0.4 foundation
+## Current v0.5 foundation
 
-The current implementation contains:
+The core now contains the full pre-construction planning loop:
 
-- a game-independent `RealRoadBuilder.Core` project targeting .NET Standard 2.1
-- a minimal `RealRoadBuilder.Mod` project using the Cities: Skylines II `CSII_TOOLPATH` mod toolchain
 - Japanese Type 1 expressway design rules for 60, 80, 100 and 120 km/h
-- separate normal and exceptional horizontal-radius and grade rules
+- normal and exceptional horizontal-radius and grade rules
 - MLIT transition-section lengths, crest/sag vertical radii, and minimum vertical-curve lengths
 - tangent, circular-arc, Euler spiral/clothoid, constant-grade, and parabolic vertical-curve primitives
-- terrain sampling through a game-independent `ITerrainSampler`
 - grade-aware 8-neighbor A* corridor search
-- exact user-selected endpoints even though the internal corridor search uses a grid
+- exact user-selected endpoints
 - heading-change penalties to discourage stair-step alignments
-- hard exclusion zones and soft land-use/demolition-style costs
-- fine terrain-profile sampling along a selected corridor
-- preliminary standards-aware vertical-profile smoothing and cut/fill depth output
-- Douglas-Peucker-style reduction of rough corridor polylines into engineering PI/control points
-- automatic horizontal fitting into tangent → clothoid → circular arc → clothoid → tangent sequences
-- automatic radius increase for shallow bends when the required transition length would otherwise consume the whole deflection
-- global adjacent-curve overlap checks across neighboring PIs
-- sampled vertical-profile reduction into PVIs
-- automatic parabolic crest/sag curve sizing from the applicable MLIT radius and minimum-length rules
-- adjacent vertical-curve overlap checks
-- exact horizontal and vertical standards validation after fitting
-- combined horizontal/vertical fitting results with structured diagnostic code, severity, and message fields
-- explicit failure instead of forcing geometry when the selected corridor cannot physically fit the standards
+- hard obstacle and soft land-use/demolition cost hooks
+- preliminary terrain/profile optimization
+- automatic corridor reduction into engineering PI/control points
+- automatic tangent → clothoid → circular arc → clothoid → tangent fitting
+- automatic parabolic crest/sag vertical-curve fitting
+- adjacent horizontal/vertical curve overlap detection
+- exact horizontal and vertical standards validation
+- exact station sampling along the **fitted** horizontal geometry, including tangents, clothoids, and circular arcs
+- exact vertical-profile evaluation at the same final stations
+- terrain/design elevation and signed cut/fill samples
+- preliminary trapezoidal cut/fill volume estimation
+- at-grade, cut, embankment, bridge, and tunnel candidate classification
+- optional forced bridge/tunnel requirements for future water/rail/protected-corridor adapters
+- tunable dimensionless construction-cost comparison
+- bridge/tunnel and failed-fit feedback zones for corridor re-search
+- an iterative `HighwayPlanningEngine` that can run route → profile → fit → evaluate → feedback → reroute and retain the best successful candidate
 
 ## Current pipeline
 
@@ -46,7 +46,7 @@ The current implementation contains:
 Start / End + road standard
             |
             v
-Terrain + constraint adapters
+Terrain + obstacle / land-use adapters
             |
             v
 Grade-aware corridor A* search
@@ -55,44 +55,90 @@ Grade-aware corridor A* search
 Preliminary terrain/design profile
             |
             v
-Corridor control-point reduction
+Engineering alignment fitting
+(horizontal clothoids/arcs + vertical parabolas)
             |
-            +--------------------------+
-            |                          |
-            v                          v
-Horizontal engineering fit      Vertical engineering fit
-Tangent / clothoid / arc        Tangent / parabola
-            |                          |
-            +-------------+------------+
-                          |
-                          v
-                Exact standards validation
-                          |
-                          v
-                 Structured diagnostics
-                          |
-                          v
-                  Future CS2 preview
-                          |
-                          v
-                  Future network build
+            v
+Exact standards validation
+            |
+            v
+Sample FINAL fitted alignment against terrain
+            |
+            v
+Cut / fill volume approximation
+            |
+            v
+At-grade / cut / embankment / bridge / tunnel classification
+            |
+            v
+Relative construction score
+            |
+     expensive / failed?
+        /          \
+      yes          no
+       |            |
+       v            v
+feedback zones    best candidate
+       |
+       +-----> corridor A* re-search
 ```
 
-## Important v0.4 limitations
+## Construction evaluation
 
-This is **not yet a finished automatic highway builder**.
+v0.5 deliberately separates two kinds of rules:
 
-- a failed engineering fit returns diagnostics, but the corridor router does not yet automatically re-search with feedback from the failed PI/PVI geometry
-- the final fitted horizontal alignment has not yet been re-sampled against the CS2 terrain; the v0.3 terrain/cut-fill profile still follows the rough search corridor
-- cut/fill is currently reported as depth only; earthwork volume is not calculated
-- bridges, embankments, tunnels, water crossings, and structure costs are not implemented yet
-- demolition and land-use costs are abstractions; the CS2 adapter does not populate them from game entities yet
+### Standards-backed geometry
+
+The horizontal and vertical alignment rules come from the encoded road standard. For the initial Japanese expressway catalog these include curve radius, transition length, maximum grade, vertical-curve radius, and minimum vertical-curve length.
+
+### Tunable planning heuristics
+
+Structure selection and cost comparison are **not claimed to be real construction estimates** yet.
+
+`ConstructionEvaluationOptions` exposes:
+
+- final alignment sample interval
+- assumed formation width
+- assumed cut/fill side-slope ratio
+- at-grade tolerance
+- deep-fill threshold for bridge candidacy
+- deep-cut threshold for tunnel candidacy
+- minimum bridge/tunnel run length
+- relative surface cost per metre
+- relative earthwork cost per cubic metre
+- relative bridge cost per metre
+- relative tunnel cost per metre
+
+The resulting `TotalRelativeCost` is a dimensionless candidate-comparison score, not JPY/USD or an engineering tender estimate.
+
+## Reroute feedback
+
+`RerouteFeedbackConstraintProvider` implements the existing corridor constraint interface, so evaluated construction problems can be fed directly back into A*.
+
+By default:
+
+- bridge candidates add a soft avoidance penalty
+- tunnel candidates add a larger soft avoidance penalty
+- failed horizontal-fit areas add a strong soft penalty
+- feedback uses radial falloff rather than a binary exclusion
+- prior obstacle/demolition providers can be composed with the feedback provider
+
+Hard blocking of fit-failure zones is available but disabled by default. This lets the router reuse an expensive area when every alternative is worse.
+
+## Important v0.5 limitations
+
+This is still **not a finished in-game automatic highway builder**.
+
+- bridge/tunnel selection is based on alignment-versus-terrain depth plus optional external requirements; there is no geotechnical, geology, hydrology, pier, portal, or foundation model
+- cut/fill volume uses an approximate symmetric trapezoidal formation cross-section
+- the default formation width is a planning parameter, not yet generated from an actual lane/shoulder/median cross-section standard
+- structure cost coefficients are relative heuristics, not currency estimates
+- water, rail, buildings, existing road networks, protected land, and demolition data are not yet populated from CS2 entities
+- final structure segments are not yet converted into CS2 bridge/tunnel network prefab choices
 - superelevation/runoff has no cross-section roll model yet
 - sight-distance validation is not implemented yet
 - dual carriageways, medians, ramps, and interchanges are not implemented yet
-- the CS2 mod does not create or alter game road networks yet
-
-The core now produces enough information to distinguish a feasible rough corridor from a final standards-valid engineering alignment. Construction remains disabled until the final alignment is checked against terrain and structure requirements.
+- the CS2 mod still does **not** create or alter game road networks
 
 ## Repository layout
 
@@ -101,9 +147,11 @@ src/
 ├── RealRoadBuilder.Core/
 │   ├── Alignment/
 │   ├── Design/
+│   ├── Evaluation/
 │   ├── Fitting/
 │   ├── Generation/
 │   ├── Geometry/
+│   ├── Planning/
 │   ├── Scoring/
 │   ├── Standards/
 │   ├── Terrain/
@@ -137,7 +185,7 @@ Then build:
 dotnet build src/RealRoadBuilder.Mod/RealRoadBuilder.Mod.csproj -c Release
 ```
 
-At v0.4 the in-game project still only loads the core. Network construction is deliberately disabled.
+At v0.5 the in-game project still only loads the core. Network construction remains deliberately disabled.
 
 Official code-modding background:
 
@@ -158,7 +206,7 @@ The initial Type 1 expressway rules encode values from:
 - Article 20 — normal and exceptional maximum grade
 - Article 22 — minimum crest/sag vertical-curve radius and minimum vertical-curve length
 
-Only values explicitly represented in the implementation should be treated as encoded design rules. Cross-section, superelevation, sight-distance, earthwork, structure, and interchange rules will be added incrementally with their sources.
+Only values explicitly represented in the standards catalog should be treated as encoded design rules. Cross-section, superelevation, sight-distance, geotechnical, structure, and interchange rules will be added incrementally with their sources.
 
 ## Roadmap
 
@@ -166,54 +214,65 @@ Only values explicitly represented in the implementation should be treated as en
 
 - [x] road-design standard model
 - [x] Japanese expressway horizontal-curve presets
-- [x] tangent/circular-arc geometry model
+- [x] tangent/circular-arc geometry
 - [x] terrain-independent candidate generation
 - [x] validation and scoring
 
 ### v0.2 — Transition and vertical geometry
 
-- [x] Euler spiral/clothoid transition element
+- [x] Euler spiral/clothoid transitions
 - [x] spiral-arc-spiral builder
 - [x] transition validation
-- [x] parabolic crest/sag vertical curves
+- [x] parabolic crest/sag curves
 - [x] grade and vertical-radius validation
 
 ### v0.3 — Terrain-aware corridor solver
 
 - [x] terrain sampling abstraction
-- [x] grade-aware corridor A* search
+- [x] grade-aware A* search
 - [x] heading penalty
 - [x] hard obstacle hooks
-- [x] soft demolition/land-use costs
-- [x] fine terrain-profile sampling
+- [x] soft land-use costs
 - [x] preliminary vertical-profile optimization
 
 ### v0.4 — Engineering alignment fitting
 
-- [x] reduce rough corridor bends into engineering control points
-- [x] fit standards-valid tangent/clothoid/arc/clothoid/tangent geometry
-- [x] detect insufficient tangent space between neighboring curves
-- [x] reduce sampled vertical profiles into PVIs
-- [x] size and build explicit parabolic crest/sag curves
-- [x] detect overlapping vertical curves
-- [x] run exact horizontal + vertical validation
-- [x] expose structured fit diagnostics
+- [x] corridor-to-PI reduction
+- [x] standards-valid horizontal fitting
+- [x] standards-valid vertical fitting
+- [x] horizontal/vertical overlap checks
+- [x] exact validation
+- [x] structured diagnostics
 
-### v0.5 — Final terrain and structure evaluation
+### v0.5 — Final terrain, structures, and reroute feedback
 
-- re-sample terrain along the fitted horizontal alignment
-- map the fitted vertical alignment onto final plan geometry
-- estimate cut/fill volumes instead of depth only
-- classify earthwork, bridge, embankment, and tunnel candidate segments
-- add structure-aware route costs
-- feed engineering-fit failures back into corridor re-search
-- produce final preview geometry and metrics for the CS2 UI adapter
+- [x] station sampling on the final fitted horizontal alignment
+- [x] map final vertical profile onto final plan geometry
+- [x] estimate preliminary cut/fill volumes
+- [x] classify at-grade/cut/embankment/bridge/tunnel candidates
+- [x] expose forced structure requirement adapter
+- [x] add relative construction-cost scoring
+- [x] generate bridge/tunnel and fit-failure reroute feedback
+- [x] compose feedback with the existing A* constraint provider
+- [x] add iterative route → fit → evaluate → reroute planning engine
+- [x] expose final preview-ready samples and metrics
+
+### v0.6 — CS2 preview integration
+
+- CS2 terrain sampler adapter
+- CS2 building/road/rail/water constraint adapters
+- in-game start/end selection tool
+- standard/design-speed/settings panel
+- ghost alignment rendering
+- cut/fill/bridge/tunnel colour overlay
+- diagnostics and candidate comparison panel
+- **still no network mutation until preview is reliable**
 
 ### Later
 
-- CS2 terrain/entity adapters and in-game preview tool
 - dual-carriageway and median generation
-- actual validated CS2 network construction
+- validated CS2 road/network construction
+- bridge/tunnel prefab selection
 - ramps and interchanges
 - superelevation and cross-section roll
 - sight-distance validation
