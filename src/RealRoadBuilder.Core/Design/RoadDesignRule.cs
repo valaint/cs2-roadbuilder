@@ -12,7 +12,10 @@ public sealed class RoadDesignRule
         double exceptionalMinimumCurveRadiusMeters,
         double minimumTransitionLengthMeters,
         double maximumGradePercent,
-        double exceptionalMaximumGradePercent)
+        double exceptionalMaximumGradePercent,
+        double minimumCrestVerticalCurveRadiusMeters,
+        double minimumSagVerticalCurveRadiusMeters,
+        double minimumVerticalCurveLengthMeters)
     {
         if (string.IsNullOrWhiteSpace(standardId))
         {
@@ -55,6 +58,21 @@ public sealed class RoadDesignRule
             throw new ArgumentOutOfRangeException(nameof(exceptionalMaximumGradePercent));
         }
 
+        if (minimumCrestVerticalCurveRadiusMeters <= 0.0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(minimumCrestVerticalCurveRadiusMeters));
+        }
+
+        if (minimumSagVerticalCurveRadiusMeters <= 0.0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(minimumSagVerticalCurveRadiusMeters));
+        }
+
+        if (minimumVerticalCurveLengthMeters <= 0.0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(minimumVerticalCurveLengthMeters));
+        }
+
         StandardId = standardId;
         RoadClass = roadClass;
         DesignSpeedKph = designSpeedKph;
@@ -63,6 +81,9 @@ public sealed class RoadDesignRule
         MinimumTransitionLengthMeters = minimumTransitionLengthMeters;
         MaximumGradePercent = maximumGradePercent;
         ExceptionalMaximumGradePercent = exceptionalMaximumGradePercent;
+        MinimumCrestVerticalCurveRadiusMeters = minimumCrestVerticalCurveRadiusMeters;
+        MinimumSagVerticalCurveRadiusMeters = minimumSagVerticalCurveRadiusMeters;
+        MinimumVerticalCurveLengthMeters = minimumVerticalCurveLengthMeters;
     }
 
     public string StandardId { get; }
@@ -80,4 +101,10 @@ public sealed class RoadDesignRule
     public double MaximumGradePercent { get; }
 
     public double ExceptionalMaximumGradePercent { get; }
+
+    public double MinimumCrestVerticalCurveRadiusMeters { get; }
+
+    public double MinimumSagVerticalCurveRadiusMeters { get; }
+
+    public double MinimumVerticalCurveLengthMeters { get; }
 }
