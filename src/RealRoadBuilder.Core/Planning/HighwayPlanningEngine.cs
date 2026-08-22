@@ -121,9 +121,9 @@ public sealed class HighwayPlanningEngine
                         "Vertical engineering fitting failed along this corridor.")
                     : RerouteFeedbackBuilder.Build(
                         constructionEvaluation: null,
-                        fitResult.Horizontal,
-                        options.Feedback,
-                        currentConstraintProvider);
+                        horizontalFit: fitResult.Horizontal,
+                        options: options.Feedback,
+                        baseProvider: currentConstraintProvider);
                 continue;
             }
 
@@ -156,10 +156,10 @@ public sealed class HighwayPlanningEngine
             }
 
             currentConstraintProvider = RerouteFeedbackBuilder.Build(
-                constructionEvaluation,
-                fitResult.Horizontal,
-                options.Feedback,
-                currentConstraintProvider);
+                constructionEvaluation: constructionEvaluation,
+                horizontalFit: fitResult.Horizontal,
+                options: options.Feedback,
+                baseProvider: currentConstraintProvider);
         }
 
         if (attempts.Count == 0)
@@ -210,7 +210,7 @@ public sealed class HighwayPlanningEngine
                     options.ZoneRadiusMeters,
                     options.FitFailurePenalty,
                     blocked: false,
-                    reason));
+                    reason: reason));
             }
         }
         else
@@ -223,7 +223,7 @@ public sealed class HighwayPlanningEngine
                 options.ZoneRadiusMeters,
                 options.FitFailurePenalty,
                 blocked: false,
-                reason));
+                reason: reason));
         }
 
         return new RerouteFeedbackConstraintProvider(zones, baseProvider);
