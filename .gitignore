@@ -1,0 +1,26 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDE
+.vs/
+.idea/
+.vscode/
+
+# Test output
+TestResults/
+coverage/
+
+# Cities: Skylines II local tooling / generated output
+Properties/Mod.props
+Properties/Mod.targets
+*.pdb
+*.dll
+
+# OS
+.DS_Store
+Thumbs.db
