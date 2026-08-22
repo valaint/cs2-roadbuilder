@@ -19,6 +19,17 @@ public sealed class CorridorVerticalProfile
             throw new ArgumentException("A designed profile requires at least two samples.", nameof(samples));
         }
 
+        for (int index = 1; index < materializedSamples.Count; index++)
+        {
+            if (materializedSamples[index].StationMeters <=
+                materializedSamples[index - 1].StationMeters)
+            {
+                throw new ArgumentException(
+                    "Designed profile sample stations must be strictly increasing.",
+                    nameof(samples));
+            }
+        }
+
         Samples = materializedSamples.AsReadOnly();
         MaximumAbsoluteGradePercent = materializedSamples
             .Skip(1)
