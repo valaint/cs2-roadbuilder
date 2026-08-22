@@ -6,16 +6,20 @@ using Unity.Mathematics;
 namespace RealRoadBuilder.Mod.GameInterop;
 
 /// <summary>
-/// Adapts the current Cities: Skylines II terrain-height snapshot to the
+/// Adapts a Cities: Skylines II CPU terrain-height snapshot to the
 /// game-independent RealRoad Builder terrain interface.
+///
+/// The owning game system is responsible for registering a CPU height reader
+/// before creating the snapshot. Keeping that lifecycle outside this adapter
+/// avoids hiding Unity job dependencies behind the synchronous core interface.
 /// </summary>
 public sealed class Cs2TerrainSampler : ITerrainSampler
 {
     private TerrainHeightData _heightData;
 
-    public Cs2TerrainSampler(TerrainSystem terrainSystem)
+    public Cs2TerrainSampler(TerrainHeightData heightData)
     {
-        _heightData = terrainSystem.GetHeightData();
+        _heightData = heightData;
     }
 
     public double GetElevationMeters(PlanarPoint position)
