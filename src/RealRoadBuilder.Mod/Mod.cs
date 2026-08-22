@@ -10,7 +10,7 @@ namespace RealRoadBuilder.Mod;
 public sealed class Mod : IMod
 {
     public const string Name = "RealRoad Builder";
-    public const string Version = "0.6.0-dev";
+    public const string Version = "0.7.0-dev";
 
     public static readonly ILog Log =
         LogManager.GetLogger("RealRoadBuilder").SetShowsErrorsInUI(false);
@@ -31,7 +31,7 @@ public sealed class Mod : IMod
         updateSystem.UpdateAt<RealRoadPreviewToolSystem>(SystemUpdatePhase.ToolUpdate);
 
         Log.Info(
-            "CS2 terrain selection and color-coded engineering preview are registered. " +
+            "Read-only CS2 planning preview with live terrain, buildings, networks, and water is registered. " +
             "Network construction remains intentionally disabled.");
     }
 
