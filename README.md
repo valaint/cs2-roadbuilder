@@ -12,7 +12,7 @@ The long-term goal is to let a player choose start/end points, road class, desig
 - **Non-destructive development** — early versions calculate and preview before they modify saves or roads.
 - **No required GitHub Actions** — the repository should remain usable without consuming Actions minutes.
 
-## Current v0.2 foundation
+## Current v0.3 foundation
 
 The current implementation contains:
 
@@ -29,22 +29,34 @@ The current implementation contains:
 - station/elevation vertical-profile primitives
 - constant-grade and parabolic vertical-curve elements
 - vertical validation for grade limits, grade continuity, curve length, and crest/sag radius
-- preliminary alignment scoring based on route length and curvature severity
-- terrain-independent seed generation: direct, left-bypass and right-bypass candidates
-- xUnit tests covering standards, fillet geometry, clothoids, vertical curves, validation, and seed generation
+- terrain sampling through a game-independent `ITerrainSampler` abstraction
+- grade-aware 8-neighbor A* corridor search
+- exact selected start/end points even though the internal search uses a grid
+- heading-change penalties to discourage stair-step alignments
+- hard exclusion areas through `ICorridorConstraintProvider.IsBlocked`
+- soft land-use/demolition-style costs through `GetAdditionalCost`
+- normal versus exceptional grade routing modes
+- safe corridor simplification that preserves meaningful terrain-profile changes
+- fine-grained terrain-profile sampling along a chosen corridor
+- a preliminary vertical-profile optimizer that smooths terrain while projecting the design inside grade and approximate crest/sag-radius limits
+- preliminary cut/fill depth metrics for later structure and earthwork decisions
+- xUnit tests covering standards, horizontal geometry, clothoids, vertical geometry, terrain routing, cost avoidance, profile sampling, and preliminary profile optimization
 
-### Important v0.2 limitations
+### Important v0.3 limitations
 
-This is **not yet a complete terrain-aware highway generator**.
+This is **not yet a finished automatic highway builder**.
 
-- the seed corridor generator does not yet replace circular fillets with spiral-arc-spiral geometry automatically
-- terrain sampling and vertical-profile optimization are not implemented yet
-- earthwork, bridge, tunnel, demolition and obstacle costs are not implemented yet
-- superelevation/runoff is represented only indirectly through minimum transition-section length; no cross-section roll model exists yet
+- the A* corridor is still a search polyline; it has not yet been automatically fitted into tangent/spiral/arc engineering geometry
+- the preliminary vertical optimizer produces sampled design elevations, not the final explicit parabolic vertical curves required for construction
+- minimum vertical-curve length is therefore enforced by the exact vertical validator only after final curve construction, not by the preliminary sampled optimizer
+- cut/fill is currently reported as depth only; earthwork volume is not calculated
+- bridges, embankments, tunnels, water crossings, and structure costs are not implemented yet
+- demolition and land-use costs are provided through an abstraction; the CS2 adapter does not populate them from game entities yet
+- superelevation/runoff has no cross-section roll model yet
 - sight-distance validation is not implemented yet
 - the CS2 mod does not create or alter game road networks yet
 
-The current core can validate engineering geometry before a future game adapter converts it into CS2 network segments.
+The current core is deliberately building enough engineering information to preview and reject bad routes before a future game adapter is allowed to construct anything.
 
 ## Architecture
 
@@ -52,13 +64,16 @@ The current core can validate engineering geometry before a future game adapter 
 Real-world standards
         |
         v
-Engineering alignment model
+Terrain + constraint adapters
         |
         v
-Geometry / route solver
+Corridor A* search
         |
         v
-Validation + scoring
+Horizontal / vertical engineering fit
+        |
+        v
+Validation + scoring + preview
         |
         v
 Cities: Skylines II adapter
@@ -67,7 +82,7 @@ Cities: Skylines II adapter
 Game road networks
 ```
 
-The core solver is intentionally kept separate from the game adapter so its geometry can be tested without launching Cities: Skylines II.
+The core solver is intentionally kept separate from the game adapter so its geometry and routing can be tested without launching Cities: Skylines II.
 
 ## Repository layout
 
@@ -80,6 +95,7 @@ src/
 │   ├── Geometry/
 │   ├── Scoring/
 │   ├── Standards/
+│   ├── Terrain/
 │   ├── Validation/
 │   └── Vertical/
 └── RealRoadBuilder.Mod/
@@ -159,17 +175,28 @@ Only values explicitly represented in the implementation should be treated as en
 
 ### v0.3 — Terrain-aware corridor solver
 
-- terrain sampling abstraction
-- corridor-grid/A* search
-- grade-aware search cost
-- obstacle and demolition cost hooks
-- automatic vertical-profile fitting
-- candidate preview data
+- [x] terrain sampling abstraction
+- [x] corridor-grid/A* search
+- [x] grade-aware search feasibility and cost
+- [x] turn/heading penalty
+- [x] hard obstacle hooks
+- [x] soft demolition/land-use cost hooks
+- [x] fine terrain-profile sampling
+- [x] preliminary automatic vertical-profile fitting
+- [x] candidate preview/profile data
+
+### v0.4 — Engineering alignment fitting
+
+- convert corridor corners into standards-valid tangent/spiral/arc/spiral/tangent sequences
+- convert the preliminary vertical solution into explicit tangent/parabolic-curve elements
+- validate the final fitted horizontal and vertical alignment together
+- reject or re-route corridors that cannot be geometrically fitted inside the available space
+- expose structured preview diagnostics for the future in-game UI
 
 ### Later
 
 - dual-carriageway generation
-- cut/fill estimation
+- cut/fill volume estimation
 - bridges, embankments, and tunnels
 - ramps and interchanges
 - superelevation and cross-section roll
