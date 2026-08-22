@@ -66,9 +66,9 @@ public sealed class RerouteFeedbackTests
             });
 
         RerouteFeedbackConstraintProvider feedback = RerouteFeedbackBuilder.Build(
-            evaluation,
+            constructionEvaluation: evaluation,
             horizontalFit: null,
-            new RerouteFeedbackOptions
+            options: new RerouteFeedbackOptions
             {
                 ZoneRadiusMeters = 80.0,
                 MinimumZoneSpacingMeters = 50.0,
@@ -103,8 +103,8 @@ public sealed class RerouteFeedbackTests
 
         RerouteFeedbackConstraintProvider feedback = RerouteFeedbackBuilder.Build(
             constructionEvaluation: null,
-            failedFit,
-            new RerouteFeedbackOptions
+            horizontalFit: failedFit,
+            options: new RerouteFeedbackOptions
             {
                 ZoneRadiusMeters = 75.0,
                 FitFailurePenalty = 250.0,
