@@ -22,12 +22,21 @@ namespace RealRoadBuilder.Mod.GameInterop;
 /// arbitrary circular approximations. Existing road and surface-rail centerlines
 /// remain soft costs so crossings stay possible until interchange/grade-separation
 /// rules are implemented explicitly.
+///
+/// Features are inserted into a uniform spatial index when the snapshot is built;
+/// A* point queries therefore inspect only features whose conservative bounds
+/// overlap the current index cell instead of scanning the entire city.
 /// </summary>
 public sealed class Cs2WorldConstraintProvider : ICorridorConstraintProvider
 {
+    private const double SpatialCellSizeMeters = 128.0;
+
     private readonly IReadOnlyList<BuildingFootprint> _buildings;
     private readonly IReadOnlyList<NetworkInfluence> _roads;
     private readonly IReadOnlyList<NetworkInfluence> _rails;
+    private readonly IReadOnlyDictionary<long, List<int>> _buildingIndex;
+    private readonly IReadOnlyDictionary<long, List<int>> _roadIndex;
+    private readonly IReadOnlyDictionary<long, List<int>> _railIndex;
     private readonly bool _buildingsAreHardObstacles;
     private readonly double _buildingSoftCost;
 
@@ -41,6 +50,9 @@ public sealed class Cs2WorldConstraintProvider : ICorridorConstraintProvider
         _buildings = buildings;
         _roads = roads;
         _rails = rails;
+        _buildingIndex = BuildBuildingIndex(buildings);
+        _roadIndex = BuildNetworkIndex(roads);
+        _railIndex = BuildNetworkIndex(rails);
         _buildingsAreHardObstacles = buildingsAreHardObstacles;
         _buildingSoftCost = buildingSoftCost;
     }
@@ -98,9 +110,14 @@ public sealed class Cs2WorldConstraintProvider : ICorridorConstraintProvider
             return false;
         }
 
-        for (int index = 0; index < _buildings.Count; index++)
+        if (!_buildingIndex.TryGetValue(GetSpatialKey(point), out List<int>? candidates))
         {
-            if (_buildings[index].Contains(point))
+            return false;
+        }
+
+        for (int index = 0; index < candidates.Count; index++)
+        {
+            if (_buildings[candidates[index]].Contains(point))
             {
                 return true;
             }
@@ -113,32 +130,39 @@ public sealed class Cs2WorldConstraintProvider : ICorridorConstraintProvider
     {
         double cost = 0.0;
 
-        if (!_buildingsAreHardObstacles)
+        if (!_buildingsAreHardObstacles &&
+            _buildingIndex.TryGetValue(GetSpatialKey(point), out List<int>? buildingCandidates))
         {
-            for (int index = 0; index < _buildings.Count; index++)
+            for (int index = 0; index < buildingCandidates.Count; index++)
             {
-                if (_buildings[index].Contains(point))
+                if (_buildings[buildingCandidates[index]].Contains(point))
                 {
                     cost += _buildingSoftCost;
                 }
             }
         }
 
-        cost += SumNetworkCosts(_roads, point);
-        cost += SumNetworkCosts(_rails, point);
+        cost += SumNetworkCosts(_roads, _roadIndex, point);
+        cost += SumNetworkCosts(_rails, _railIndex, point);
         return cost;
     }
 
     private static double SumNetworkCosts(
         IReadOnlyList<NetworkInfluence> influences,
+        IReadOnlyDictionary<long, List<int>> spatialIndex,
         PlanarPoint point)
     {
+        if (!spatialIndex.TryGetValue(GetSpatialKey(point), out List<int>? candidates))
+        {
+            return 0.0;
+        }
+
         double cost = 0.0;
         float2 position = new((float)point.X, (float)point.Y);
 
-        for (int index = 0; index < influences.Count; index++)
+        for (int index = 0; index < candidates.Count; index++)
         {
-            NetworkInfluence influence = influences[index];
+            NetworkInfluence influence = influences[candidates[index]];
             float distance = MathUtils.Distance(influence.Curve.xz, position, out _);
             if (distance >= influence.RadiusMeters)
             {
@@ -336,6 +360,78 @@ public sealed class Cs2WorldConstraintProvider : ICorridorConstraintProvider
         }
     }
 
+    private static IReadOnlyDictionary<long, List<int>> BuildBuildingIndex(
+        IReadOnlyList<BuildingFootprint> buildings)
+    {
+        Dictionary<long, List<int>> index = new();
+        for (int featureIndex = 0; featureIndex < buildings.Count; featureIndex++)
+        {
+            buildings[featureIndex].GetBounds(
+                out double minX,
+                out double minY,
+                out double maxX,
+                out double maxY);
+            AddBoundsToIndex(index, featureIndex, minX, minY, maxX, maxY);
+        }
+
+        return index;
+    }
+
+    private static IReadOnlyDictionary<long, List<int>> BuildNetworkIndex(
+        IReadOnlyList<NetworkInfluence> influences)
+    {
+        Dictionary<long, List<int>> index = new();
+        for (int featureIndex = 0; featureIndex < influences.Count; featureIndex++)
+        {
+            influences[featureIndex].GetBounds(
+                out double minX,
+                out double minY,
+                out double maxX,
+                out double maxY);
+            AddBoundsToIndex(index, featureIndex, minX, minY, maxX, maxY);
+        }
+
+        return index;
+    }
+
+    private static void AddBoundsToIndex(
+        Dictionary<long, List<int>> index,
+        int featureIndex,
+        double minX,
+        double minY,
+        double maxX,
+        double maxY)
+    {
+        int minCellX = GetCellCoordinate(minX);
+        int minCellY = GetCellCoordinate(minY);
+        int maxCellX = GetCellCoordinate(maxX);
+        int maxCellY = GetCellCoordinate(maxY);
+
+        for (int cellX = minCellX; cellX <= maxCellX; cellX++)
+        {
+            for (int cellY = minCellY; cellY <= maxCellY; cellY++)
+            {
+                long key = GetSpatialKey(cellX, cellY);
+                if (!index.TryGetValue(key, out List<int>? bucket))
+                {
+                    bucket = new List<int>();
+                    index[key] = bucket;
+                }
+
+                bucket.Add(featureIndex);
+            }
+        }
+    }
+
+    private static int GetCellCoordinate(double coordinate) =>
+        (int)Math.Floor(coordinate / SpatialCellSizeMeters);
+
+    private static long GetSpatialKey(PlanarPoint point) =>
+        GetSpatialKey(GetCellCoordinate(point.X), GetCellCoordinate(point.Y));
+
+    private static long GetSpatialKey(int cellX, int cellY) =>
+        ((long)cellX << 32) ^ (uint)cellY;
+
     private readonly struct BuildingFootprint
     {
         public BuildingFootprint(
@@ -370,6 +466,25 @@ public sealed class Cs2WorldConstraintProvider : ICorridorConstraintProvider
                 Math.Abs(localX) <= HalfWidthMeters &&
                 Math.Abs(localZ) <= HalfDepthMeters;
         }
+
+        public void GetBounds(
+            out double minX,
+            out double minY,
+            out double maxX,
+            out double maxY)
+        {
+            double extentX =
+                (Math.Abs(Right.x) * HalfWidthMeters) +
+                (Math.Abs(Forward.x) * HalfDepthMeters);
+            double extentY =
+                (Math.Abs(Right.y) * HalfWidthMeters) +
+                (Math.Abs(Forward.y) * HalfDepthMeters);
+
+            minX = Center.X - extentX;
+            maxX = Center.X + extentX;
+            minY = Center.Y - extentY;
+            maxY = Center.Y + extentY;
+        }
     }
 
     private readonly struct NetworkInfluence
@@ -384,5 +499,22 @@ public sealed class Cs2WorldConstraintProvider : ICorridorConstraintProvider
         public Bezier4x3 Curve { get; }
         public float RadiusMeters { get; }
         public double Cost { get; }
+
+        public void GetBounds(
+            out double minX,
+            out double minY,
+            out double maxX,
+            out double maxY)
+        {
+            float minCurveX = math.min(math.min(Curve.a.x, Curve.b.x), math.min(Curve.c.x, Curve.d.x));
+            float maxCurveX = math.max(math.max(Curve.a.x, Curve.b.x), math.max(Curve.c.x, Curve.d.x));
+            float minCurveY = math.min(math.min(Curve.a.z, Curve.b.z), math.min(Curve.c.z, Curve.d.z));
+            float maxCurveY = math.max(math.max(Curve.a.z, Curve.b.z), math.max(Curve.c.z, Curve.d.z));
+
+            minX = minCurveX - RadiusMeters;
+            maxX = maxCurveX + RadiusMeters;
+            minY = minCurveY - RadiusMeters;
+            maxY = maxCurveY + RadiusMeters;
+        }
     }
 }
