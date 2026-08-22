@@ -10,7 +10,7 @@ public sealed class Mod : IMod
     public const string Version = "0.1.0-dev";
 
     public static readonly ILog Log =
-        LogManager.GetLogger(nameof(RealRoadBuilder)).SetShowsErrorsInUI(false);
+        LogManager.GetLogger("RealRoadBuilder").SetShowsErrorsInUI(false);
 
     public void OnLoad(UpdateSystem updateSystem)
     {
